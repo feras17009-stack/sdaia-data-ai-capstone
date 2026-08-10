@@ -1,55 +1,82 @@
 """
-Semantic Document Chunker Preserving Document & Category Metadata.
+Document Chunker & Citation Metadata Enrichment Engine
 """
 
+import os
 from typing import List, Dict, Any
 
 
-class SemanticChunker:
-    """Splits article content into overlapping chunks while attaching article metadata."""
+def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50) -> List[str]:
+    """Splits a document text body into overlapping text chunks."""
+    if not text:
+        return []
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + chunk_size
+        chunk = text[start:end]
+        chunks.append(chunk.strip())
+        if end >= len(text):
+            break
+        start += (chunk_size - overlap)
+    return chunks
 
-    def __init__(self, chunk_size: int = 200, chunk_overlap: int = 40):
-        self.chunk_size = chunk_size
-        self.chunk_overlap = chunk_overlap
 
-    def chunk_article(self, article: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """
-        Splits article text into chunks of specified length and overlap.
-        Preserves article_id, chunk_id, title, category metadata.
-        """
-        text = article.get("content", "")
-        article_id = article.get("article_id", "unknown")
-        title = article.get("title", "")
-        category = article.get("category", "")
+def prepare_document_chunks(
+    silver_delta_path: str = "./data/delta/silver",
+    chunk_size: int = 500,
+    overlap: int = 50
+) -> List[Dict[str, Any]]:
+    """
+    Reads documents from Silver Delta layer, chunks content, and attaches rich metadata
+    for downstream citation tracking.
+    """
+    documents = []
 
-        if not text:
-            return []
+    # Read records from Silver Delta table
+    if os.path.exists(silver_delta_path):
+        try:
+            from src.lakehouse.spark_session import get_spark_session
+            spark = get_spark_session("RAG-Chunker")
+            df_silver = spark.read.format("delta").load(silver_delta_path)
+            documents = [row.asDict() for row in df_silver.collect()]
+        except Exception as e:
+            print(f"[Chunker] Spark load fallback: {e}")
 
-        chunks = []
-        step = self.chunk_size - self.chunk_overlap
-        if step <= 0:
-            step = self.chunk_size
+    # Fallback to direct raw sample if Delta not yet built
+    if not documents:
+        validated_path = "./data/raw_sample/validated_records.json"
+        if os.path.exists(validated_path):
+            import json
+            with open(validated_path, "r", encoding="utf-8") as f:
+                documents = json.load(f)
 
-        start = 0
-        chunk_idx = 0
-        while start < len(text):
-            end = min(start + self.chunk_size, len(text))
-            chunk_text = text[start:end]
-            
-            chunk_record = {
-                "chunk_id": f"{article_id}_chunk_{chunk_idx:03d}",
-                "article_id": article_id,
+    chunk_records = []
+    for doc in documents:
+        doc_id = doc.get("article_id", "DOC-UNKNOWN")
+        title = doc.get("title", "")
+        author = doc.get("author", "")
+        category = doc.get("category", "")
+        content = doc.get("content", "")
+
+        raw_chunks = chunk_text(content, chunk_size=chunk_size, overlap=overlap)
+        for idx, c_text in enumerate(raw_chunks):
+            chunk_records.append({
+                "chunk_id": f"{doc_id}_C{idx}",
+                "doc_id": doc_id,
+                "chunk_index": idx,
                 "title": title,
+                "author": author,
                 "category": category,
-                "text": chunk_text,
-                "start_char": start,
-                "end_char": end
-            }
-            chunks.append(chunk_record)
+                "text": c_text,
+                "citation_label": f"[Doc ID: {doc_id}, Chunk: {idx} | '{title[:35]}...' by {author}]"
+            })
 
-            if end == len(text):
-                break
-            start += step
-            chunk_idx += 1
+    print(f"[RAG Chunker] Prepared {len(chunk_records)} text chunks from {len(documents)} source documents.")
+    return chunk_records
 
-        return chunks
+
+if __name__ == "__main__":
+    chunks = prepare_document_chunks()
+    if chunks:
+        print(f"Sample Chunk 0 Citation Label: {chunks[0]['citation_label']}")

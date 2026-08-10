@@ -1,0 +1,31 @@
+project:
+  name: "Modern Data Engineering AI Capstone"
+  environment: "local"
+
+kafka:
+  bootstrap_servers: "localhost:9092"
+  raw_topic: "sdaia-raw-tech-events"
+  dlq_topic: "sdaia-quarantine-dlq"
+  group_id: "sdaia-capstone-consumer-group"
+
+lakehouse:
+  base_dir: "./data/delta"
+  bronze_path: "./data/delta/bronze"
+  silver_path: "./data/delta/silver"
+  gold_path: "./data/delta/gold"
+  quarantine_path: "./data/quarantine_dlq"
+  business_key: "article_id"
+
+rag:
+  vector_db_path: "./data/vector_store"
+  embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
+  reranker_model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+  chunk_size: 500
+  chunk_overlap: 50
+  top_k_dense: 5
+  top_k_bm25: 5
+  top_k_rerank: 3
+
+lineage:
+  namespace: "sdaia_capstone_pipeline"
+  producer: "https://github.com/SDAIAAcademy/modern-data-engineering"

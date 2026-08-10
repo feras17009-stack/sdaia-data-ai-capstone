@@ -1,0 +1,82 @@
+[
+  {
+    "article_id": "ART-101",
+    "title": "Scaling Distributed Delta Lakes with PySpark and Airflow",
+    "author": "Dr. Sarah Al-Otaibi",
+    "category": "Data Engineering",
+    "content": "Delta Lake provides ACID transactions and time travel capability for Spark data lakes. In this comprehensive guide, we explore how schema enforcement and merge upserts keep data clean at enterprise scale.",
+    "views": 1420,
+    "rating": 4.8,
+    "published_timestamp": "2026-08-01T10:00:00Z"
+  },
+  {
+    "article_id": "ART-102",
+    "title": "Building Production RAG Systems with Hybrid Vector & BM25 Search",
+    "author": "Mohammed Al-Beladi",
+    "category": "AI",
+    "content": "Dense vector retrieval excels at semantic context matching, while BM25 keyword search catches exact technical terms. Fusing both using Reciprocal Rank Fusion (RRF) delivers superior grounded citations.",
+    "views": 2890,
+    "rating": 4.9,
+    "published_timestamp": "2026-08-02T14:30:00Z"
+  },
+  {
+    "article_id": "ART-103",
+    "title": "Zero Trust Cloud Infrastructure & Security Controls",
+    "author": "Fahad Al-Ghamdi",
+    "category": "Cybersecurity",
+    "content": "Securing multi-tenant cloud workloads requires identity-centric network perimeters and real-time anomaly detection pipelines built on streaming telemetry.",
+    "views": 950,
+    "rating": 4.6,
+    "published_timestamp": "2026-08-03T09:15:00Z"
+  },
+  {
+    "article_id": "ART-104",
+    "title": "Microservices Integration Patterns with Apache Kafka",
+    "author": "Laila Al-Hassan",
+    "category": "Software Architecture",
+    "content": "Event-driven architectures leverage Kafka topic partitions, dead-letter queues, and schema registries to achieve asynchronous decoupling and strict ingestion guarantees.",
+    "views": 1820,
+    "rating": 4.7,
+    "published_timestamp": "2026-08-04T11:45:00Z"
+  },
+  {
+    "article_id": "ART-105",
+    "title": "Large Language Model Fine-Tuning on Saudi Sovereign Cloud",
+    "author": "Dr. Sarah Al-Otaibi",
+    "category": "AI",
+    "content": "Fine-tuning open-weights Arabic models requires high-throughput GPU clusters, data deduplication, and strict data governance policies aligned with national standards.",
+    "views": 3100,
+    "rating": 5.0,
+    "published_timestamp": "2026-08-05T16:00:00Z"
+  },
+  {
+    "article_id": "ART-BAD-01",
+    "title": "A",
+    "author": "Anonymous",
+    "category": "AI",
+    "content": "Invalid title test payload for quarantine testing.",
+    "views": 10,
+    "rating": 4.0,
+    "published_timestamp": "2026-08-06T12:00:00Z"
+  },
+  {
+    "article_id": "ART-BAD-02",
+    "title": "Malformed Views and Rating Event",
+    "author": "Bad Data Generator",
+    "category": "Cloud",
+    "content": "This payload contains negative views and an out-of-range rating score.",
+    "views": -500,
+    "rating": 9.9,
+    "published_timestamp": "2026-08-06T13:00:00Z"
+  },
+  {
+    "article_id": "ART-BAD-03",
+    "title": "Unapproved Category Event",
+    "author": "Unknown User",
+    "category": "CryptoSpeculation",
+    "content": "Payload using category outside allowed domain contracts.",
+    "views": 50,
+    "rating": 2.5,
+    "published_timestamp": "INVALID-DATE-FORMAT"
+  }
+]

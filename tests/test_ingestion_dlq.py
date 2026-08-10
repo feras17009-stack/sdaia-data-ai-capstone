@@ -1,57 +1,53 @@
 """
-TDD Tests: Real-time Ingestion & Dead-Letter Queue (DLQ) Quarantine Flow.
+Unit tests for Ingestion Schema Validation & Dead-Letter Topic (DLQ) Quarantine
 """
 
 import os
 import json
 import pytest
+from src.ingestion.schemas import ArticleEvent, QuarantineRecord
+from src.ingestion.producer import publish_events
+from src.ingestion.consumer import process_ingestion
 
 
-def test_ingestion_consumer_validation_routing(temp_workspace, valid_article_payload, malformed_article_payloads):
-    """
-    Verify that consumer validates payloads using Pydantic:
-    - Valid payloads -> saved to valid_buffer.json
-    - Invalid payloads -> isolated to quarantine DLQ directory with error metadata.
-    """
-    from src.ingestion.consumer import process_incoming_payloads
+def test_valid_article_event_schema():
+    valid_payload = {
+        "article_id": "ART-TEST-001",
+        "title": "Testing Kafka Schema Validation Ingestion Boundary",
+        "author": "SDAIA Trainee",
+        "category": "Data Engineering",
+        "content": "Comprehensive test payload enforcing Pydantic data contracts at the ingestion layer.",
+        "views": 500,
+        "rating": 4.5,
+        "published_timestamp": "2026-08-10T12:00:00Z"
+    }
+    event = ArticleEvent(**valid_payload)
+    assert event.article_id == "ART-TEST-001"
+    assert event.views == 500
 
-    valid_buffer_path = os.path.join(temp_workspace, "raw_sample", "valid_buffer.json")
-    dlq_dir = os.path.join(temp_workspace, "quarantine_dlq")
-    os.makedirs(os.path.dirname(valid_buffer_path), exist_ok=True)
-    os.makedirs(dlq_dir, exist_ok=True)
 
-    # Mix 1 valid payload with malformed payloads
-    incoming_batch = [valid_article_payload] + malformed_article_payloads
+def test_malformed_article_event_schema():
+    malformed_payload = {
+        "article_id": "ART-BAD-TEST",
+        "title": "X",  # Too short
+        "author": "Tester",
+        "category": "InvalidCategory",  # Not in allowed list
+        "content": "Short",
+        "views": -10,  # Negative
+        "rating": 10.0,  # > 5.0
+        "published_timestamp": "BAD-DATE"
+    }
+    with pytest.raises(ValueError):
+        ArticleEvent(**malformed_payload)
 
-    # Execute processing loop logic
-    stats = process_incoming_payloads(
-        batch=incoming_batch,
-        valid_buffer_file=valid_buffer_path,
-        dlq_dir=dlq_dir
-    )
 
-    # Assert valid count & quarantined count
-    assert stats["processed"] == len(incoming_batch)
-    assert stats["valid_count"] == 1
-    assert stats["quarantined_count"] == len(malformed_article_payloads)
+def test_end_to_end_ingestion_dlq_routing():
+    publish_res = publish_events()
+    assert publish_res["status"] == "SUCCESS"
 
-    # Verify valid_buffer.json contains valid record
-    with open(valid_buffer_path, "r", encoding="utf-8") as f:
-        valid_records = json.load(f)
-    assert len(valid_records) == 1
-    assert valid_records[0]["article_id"] == valid_article_payload["article_id"]
-
-    # Verify quarantine DLQ directory contains error metadata files
-    dlq_files = [f for f in os.listdir(dlq_dir) if f.endswith(".json")]
-    assert len(dlq_files) == len(malformed_article_payloads)
-
-    # Inspect one DLQ payload
-    sample_dlq_file = os.path.join(dlq_dir, dlq_files[0])
-    with open(sample_dlq_file, "r", encoding="utf-8") as f:
-        dlq_data = json.load(f)
-    
-    assert "error_type" in dlq_data
-    assert dlq_data["error_type"] == "ValidationError"
-    assert "field_failed" in dlq_data
-    assert "raw_payload" in dlq_data
-    assert "quarantine_id" in dlq_data
+    process_res = process_ingestion()
+    assert process_res["total_processed"] > 0
+    assert process_res["valid_count"] == 5
+    assert process_res["quarantine_count"] == 3
+    assert os.path.exists(process_res["validated_path"])
+    assert os.path.exists(process_res["quarantine_path"])

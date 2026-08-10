@@ -1,50 +1,45 @@
 """
-Pydantic Data Contracts & DLQ Quarantine Payload Formatting.
+Pydantic Data Contracts for Ingestion Validation & Quarantine DLQ
 """
 
-import uuid
-from datetime import datetime, timezone
-from typing import Literal, Optional, Dict, Any
+from typing import Optional, Dict, Any
+from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 
 
-class ArticleContract(BaseModel):
-    """Data Contract governing incoming raw article payloads."""
-    article_id: str = Field(..., description="Unique UUID identifier for the article")
-    title: str = Field(..., min_length=5, description="Article title (minimum 5 characters)")
-    content: str = Field(..., min_length=10, description="Article content (minimum 10 characters)")
-    category: Literal["AI_ML", "Data_Engineering", "Cloud_Computing", "Cybersecurity"] = Field(
-        ..., description="Standardized category taxonomy"
-    )
-    author: Optional[str] = "Anonymous"
-    published_at: str = Field(..., description="ISO 8601 publication timestamp")
-    word_count: int = Field(..., gt=0, description="Positive word count value")
+class ArticleEvent(BaseModel):
+    """Data contract for incoming tech article events at the ingestion boundary."""
+    article_id: str = Field(..., description="Unique business key for the article")
+    title: str = Field(..., min_length=3, description="Article title (at least 3 characters)")
+    author: str = Field(..., min_length=2, description="Author full name")
+    category: str = Field(..., description="Category (e.g., AI, Data Engineering, Cloud, Security)")
+    content: str = Field(..., min_length=10, description="Article body text")
+    views: int = Field(ge=0, description="Article view count (must be non-negative)")
+    rating: float = Field(ge=0.0, le=5.0, description="User rating between 0.0 and 5.0")
+    published_timestamp: str = Field(..., description="ISO 8601 publication timestamp")
 
-    @field_validator("article_id")
+    @field_validator("published_timestamp")
     @classmethod
-    def validate_uuid(cls, value: str) -> str:
-        """Enforces that article_id is a valid UUID string format."""
-        if not value or not isinstance(value, str):
-            raise ValueError("article_id must be a non-empty string")
+    def validate_timestamp_format(cls, v: str) -> str:
         try:
-            uuid.UUID(value)
-        except ValueError:
-            raise ValueError(f"article_id '{value}' is not a valid UUID format")
-        return value
+            datetime.fromisoformat(v.replace("Z", "+00:00"))
+            return v
+        except Exception:
+            raise ValueError(f"Invalid ISO 8601 timestamp format: '{v}'")
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, v: str) -> str:
+        allowed = {"AI", "Data Engineering", "Cloud", "Cybersecurity", "Software Architecture"}
+        if v not in allowed:
+            raise ValueError(f"Category '{v}' is not in allowed list: {allowed}")
+        return v
 
 
-def format_dlq_payload(
-    raw_payload: Dict[str, Any],
-    error_type: str,
-    field_failed: str,
-    error_message: str
-) -> Dict[str, Any]:
-    """Formats an unprocessable or malformed record into a standardized DLQ quarantine structure."""
-    return {
-        "quarantine_id": f"dlq_{uuid.uuid4().hex[:8]}",
-        "error_type": error_type,
-        "field_failed": field_failed,
-        "error_message": error_message,
-        "raw_payload": raw_payload,
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }
+class QuarantineRecord(BaseModel):
+    """Schema for malformed records routed to the Dead-Letter Topic / Quarantine zone."""
+    quarantine_id: str
+    rejection_timestamp: str
+    rejection_reason: str
+    failed_field: Optional[str] = None
+    raw_payload: Dict[str, Any]

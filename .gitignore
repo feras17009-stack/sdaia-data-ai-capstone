@@ -1,24 +1,31 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Environments
 .venv/
 env/
 venv/
 ENV/
 
-# IDE / Editor settings
-.vscode/
-.idea/
+# Jupyter
+.ipynb_checkpoints/
 
-# Testing & Data caches
-.pytest_cache/
-.coverage
-htmlcov/
-*.log
-.spark-warehouse/
+# Data & Lakehouse storage
+data/delta/
+data/quarantine_dlq/
 metastore_db/
+derby.log
+spark-warehouse/
 checkpoint/
-delta/
+.chroma/
+
+# Airflow
+airflow/*.db
+airflow/logs/
+airflow/*.pid
+
+# Environment & IDE
+.env
+.idea/
+.vscode/
+*.log
